@@ -36,6 +36,7 @@ import { Subject } from '../entities/subject.entity';
 import { Room } from '../entities/room.entity';
 import { Department } from '../entities/department.entity';
 import { Course } from '../entities/course.entity';
+import { SyncHistory } from '../entities/sync-history.entity';
 
 @Injectable()
 export class ParserService implements OnModuleInit {
@@ -68,7 +69,61 @@ export class ParserService implements OnModuleInit {
     @InjectRepository(Room) private roomRepo: Repository<Room>,
     @InjectRepository(Department) private departmentRepo: Repository<Department>,
     @InjectRepository(Course) private courseRepo: Repository<Course>,
+    @InjectRepository(SyncHistory) private syncHistoryRepo: Repository<SyncHistory>,
   ) {}
+
+  private async updateLastSync(type: string) {
+    try {
+      await this.syncHistoryRepo.save({
+        type,
+        lastSyncAt: new Date(),
+      });
+    } catch (err: any) {
+      this.logger.error(`❌ Ошибка обновления истории синхронизации (${type}): ${err.message}`);
+    }
+  }
+
+  /**
+   * Проверяет, нужно ли запускать синхронизацию на основе времени последнего запуска
+   * @param type Тип синхронизации
+   * @param schedule Тип расписания ('schedule' - 00:00 и 18:00, 'news' - раз в сутки)
+   */
+  private async shouldSync(type: string, schedule: 'schedule' | 'news' | 'daily'): Promise<boolean> {
+    const history = await this.syncHistoryRepo.findOne({ where: { type } });
+    if (!history) return true;
+
+    const lastSync = new Date(history.lastSyncAt);
+    const now = new Date();
+
+    if (schedule === 'news' || schedule === 'daily') {
+      // Раз в сутки - если сегодня еще не парсили
+      return (
+        lastSync.getFullYear() !== now.getFullYear() ||
+        lastSync.getMonth() !== now.getMonth() ||
+        lastSync.getDate() !== now.getDate()
+      );
+    }
+
+    if (schedule === 'schedule') {
+      // Расписание: 12 ночи (00:00) и 6 вечера (18:00)
+      // Если последний парсинг был до ближайшего прошедшего рубежа (00 или 18), то надо парсить
+      const today00 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const today18 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0);
+      
+      // Определяем последний рубеж, который уже наступил сегодня
+      let lastThreshold: Date;
+      if (now >= today18) {
+        lastThreshold = today18;
+      } else {
+        lastThreshold = today00;
+      }
+
+      // Если парсили раньше этого рубежа - пора парсить снова
+      return lastSync < lastThreshold;
+    }
+
+    return true;
+  }
 
   async onModuleInit() {
     this.logger.log(
@@ -82,13 +137,59 @@ export class ParserService implements OnModuleInit {
     }
 
     // Запускаем в фоне, чтобы не блокировать запуск сервера
-    this.seedSpecialties()
-      .then(() => this.parseAdmissionPlans())
-      .then(() => this.parseAdmissionResults())
-      .then(() => this.parsePassingScores())
-      .then(() => this.seedAdmissionDocuments())
-      .then(() => this.parseSchedule())
-      .catch(err => this.logger.error(`❌ Ошибка при инициализации данных: ${err.message}`));
+    this.initialSync().catch(err => this.logger.error(`❌ Ошибка при инициализации данных: ${err.message}`));
+  }
+
+  private async initialSync() {
+    await this.seedSpecialties();
+
+    if (await this.shouldSync('admission-plans', 'daily')) {
+      await this.parseAdmissionPlans();
+    } else {
+      this.logger.log('⏭️ Планы приема уже парсились сегодня, пропускаем...');
+    }
+
+    if (await this.shouldSync('admission-results', 'daily')) {
+      await this.parseAdmissionResults();
+    } else {
+      this.logger.log('⏭️ Результаты приема уже парсились сегодня, пропускаем...');
+    }
+
+    if (await this.shouldSync('passing-scores', 'daily')) {
+      await this.parsePassingScores();
+    } else {
+      this.logger.log('⏭️ Проходные баллы уже парсились сегодня, пропускаем...');
+    }
+
+    await this.seedAdmissionDocuments();
+
+    if (await this.shouldSync('schedule', 'schedule')) {
+      await this.parseSchedule();
+    } else {
+      this.logger.log('⏭️ Расписание актуально, пропускаем начальный парсинг...');
+    }
+
+    if (await this.shouldSync('news', 'news')) {
+      await this.parseNatkNews();
+    } else {
+      this.logger.log('⏭️ Новости актуальны, пропускаем начальный парсинг...');
+    }
+
+    if (await this.shouldSync('staff', 'daily')) {
+      await this.parseStaff();
+    }
+
+    if (await this.shouldSync('docs', 'daily')) {
+      await this.parseDocuments();
+    }
+
+    if (await this.shouldSync('vacancies', 'daily')) {
+      await this.parseVacancies();
+    }
+
+    if (await this.shouldSync('structure', 'daily')) {
+      await this.parseStructure();
+    }
   }
 
   @Cron('0 2 * * *')
@@ -138,6 +239,7 @@ export class ParserService implements OnModuleInit {
       }
 
       this.logger.log(`📈 Точный парсинг завершен. Обновлено специальностей: ${updatedCount}`);
+      await this.updateLastSync('passing-scores');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге проходных баллов: ${error.message}`);
     }
@@ -576,6 +678,7 @@ export class ParserService implements OnModuleInit {
       }
 
       this.logger.log(`✅ Планы приема ${campaignYear} года обновлены. Загружено записей: ${plans.length}`);
+      await this.updateLastSync('admission-plans');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге планов приема: ${error.message}`);
     }
@@ -645,6 +748,7 @@ export class ParserService implements OnModuleInit {
       }
 
       this.logger.log(`✅ Сведения о приеме обновлены. Загружено записей: ${parsedResults.length}`);
+      await this.updateLastSync('admission-results');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге сведений о приеме: ${error.message}`);
     }
@@ -1166,8 +1270,8 @@ export class ParserService implements OnModuleInit {
     return text.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  // Для тестов запускаем раз в 5 минут
-  @Cron('0 */5 * * * *')
+  // Запускаем раз в сутки ночью (в 1:00)
+  @Cron('0 1 * * *')
   async parseNatkNews() {
     if (!this.runBackgroundParsers) return;
     this.logger.log('🕵️‍♂️ Парсер проснулся! Собираем ссылки на новости...');
@@ -1272,6 +1376,7 @@ export class ParserService implements OnModuleInit {
       }
 
       this.logger.log(`✅ Глубокий парсинг завершен! Успешно собрано: ${fullNewsData.length} шт.`);
+      await this.updateLastSync('news');
       
       // СОХРАНЕНИЕ В БД
       for (const data of fullNewsData) {
@@ -1564,7 +1669,7 @@ export class ParserService implements OnModuleInit {
       }
 
       this.logger.log(`🏁 Глубокая синхронизация сотрудников завершена!`);
-
+      await this.updateLastSync('staff');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге сотрудников: ${error.message}`);
     }
@@ -1699,7 +1804,8 @@ export class ParserService implements OnModuleInit {
       }
 
       this.logger.log(`✅ Сбор завершен! Всего уникальных документов: ${documentsList.length}`);
-      
+      await this.updateLastSync('docs');
+
       // Сохранение в БД
       for (const data of documentsList) {
         try {
@@ -1775,8 +1881,8 @@ export class ParserService implements OnModuleInit {
     }
   }
 
-  // Запускаем каждый час, так как расписание часто меняется (отмены пар)
-  @Cron('0 * * * *')
+  // Запускаем дважды в день: в 12 ночи и в 6 вечера
+  @Cron('0 0,18 * * *')
   async parseSchedule() {
     if (!this.runBackgroundParsers) return;
     this.logger.log('📅 Начинаем парсинг расписания...');
@@ -2142,6 +2248,7 @@ export class ParserService implements OnModuleInit {
           this.logger.error(`❌ Ошибка обработки группы ${groupName}: ${groupError.message}`);
         }
       }
+      await this.updateLastSync('schedule');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге расписания: ${error.message}`);
     }
@@ -2270,6 +2377,7 @@ export class ParserService implements OnModuleInit {
         }
       }
       this.logger.log(`✅ Структура колледжа спарсена! Найдено подразделений: ${uniqueDepts.length}`);
+      await this.updateLastSync('structure');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге структуры: ${error.message}`);
     }
@@ -2415,7 +2523,7 @@ export class ParserService implements OnModuleInit {
           this.logger.error(`❌ Ошибка сохранения вакансии в БД: ${dbError.message}`);
         }
       }
-
+      await this.updateLastSync('vacancies');
     } catch (error: any) {
       this.logger.error(`❌ Ошибка при парсинге вакансий: ${error.message}`);
     }

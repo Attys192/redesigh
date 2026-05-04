@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Query, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiService } from './api.service';
-import { ParserService } from '../parser/parser.service';
+import { ParserService } from '../parser/parser.servic1e';
 import { AdmissionService } from '../admission/admission.service';
 import { SyncQueryDto, ScheduleQueryDto, DocumentQueryDto, StaffSearchDto } from './dto';
 

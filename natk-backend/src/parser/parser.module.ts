@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ParserService } from './parser.service';
+import { ParserService } from './parser.servic1e';
 import { News } from '../entities/news.entity';
 import { NewsImage } from '../entities/news-image.entity';
 import { Staff } from '../entities/staff.entity';
