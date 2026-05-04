@@ -1,0 +1,136 @@
+/**
+ * Shared constants used by the frontend.
+ * This local copy avoids Turbopack imports outside of `natk-frontend`.
+ */
+
+export interface SubjectArea {
+  id: string;
+  title: string;
+  subjects: string[];
+}
+
+export const SUBJECT_AREAS: SubjectArea[] = [
+  { id: 'rus_lit', title: 'Русский язык и литература', subjects: ['Русский язык', 'Литература'] },
+  { id: 'native', title: 'Родной язык и родная литература', subjects: ['Родной язык', 'Родная литература'] },
+  { id: 'foreign', title: 'Иностранные языки', subjects: ['Иностранный язык', 'Второй иностранный язык'] },
+  { id: 'math_inf', title: 'Математика и информатика', subjects: ['Математика', 'Информатика', 'Алгебра', 'Геометрия'] },
+  { id: 'science', title: 'Естественнонаучные предметы', subjects: ['Физика', 'Химия', 'Биология', 'Астрономия', 'Естествознание', 'Экология'] },
+  { id: 'social', title: 'Общественно-научные предметы', subjects: ['История', 'Всеобщая история', 'Всемирная история', 'История России', 'Россия в мире', 'Обществознание', 'Основы обществознания', 'География', 'Право', 'Основы права', 'Экономика'] },
+  { id: 'odnknr', title: 'Основы духовно-нравственной культуры', subjects: ['ОДНКНР'] },
+  { id: 'art', title: 'Искусство', subjects: ['Изобразительное искусство', 'Музыка'] },
+  { id: 'tech', title: 'Технология', subjects: ['Труд', 'Технология', 'Черчение'] },
+  { id: 'obzh', title: 'Основы безопасности', subjects: ['Основы безопасности и защиты Родины', 'ОБЖ'] },
+  { id: 'fizra', title: 'Физическая культура', subjects: ['Физическая культура', 'Адаптивная физ. культура'] },
+];
+
+export interface SpecialtyInfo {
+  code: string;
+  title: string;
+}
+
+export const SPECIALTIES: Record<string, SpecialtyInfo> = {
+  '09.02.11': { code: '09.02.11', title: 'Разработка и управление программным обеспечением' },
+  '09.02.01': { code: '09.02.01', title: 'Компьютерные системы и комплексы' },
+  '25.02.06': { code: '25.02.06', title: 'Производство и обслуживание авиационной техники' },
+  '25.02.08': { code: '25.02.08', title: 'Эксплуатация беспилотных авиационных систем' },
+  '25.02.03': { code: '25.02.03', title: 'Техническая эксплуатация электрифицированных и пилотажно-навигационных комплексов' },
+  '11.02.17': { code: '11.02.17', title: 'Разработка электронных устройств и систем' },
+  '11.02.16': { code: '11.02.16', title: 'Монтаж, техническое обслуживание и ремонт электронных приборов и устройств' },
+  '11.02.06': { code: '11.02.06', title: 'Техническая эксплуатация транспортного радиоэлектронного оборудования' },
+  '15.02.16': { code: '15.02.16', title: 'Технология машиностроения' },
+  '15.02.09': { code: '15.02.09', title: 'Аддитивные технологии' },
+  '15.02.17': { code: '15.02.17', title: 'Монтаж, техническое обслуживание, эксплуатация и ремонт промышленного оборудования' },
+  '31.02.04': { code: '31.02.04', title: 'Медицинская оптика' },
+  '12.02.09': { code: '12.02.09', title: 'Производство и эксплуатация оптических и оптико-электронных приборов и систем' },
+};
+
+export const SPECIALTY_CODES = Object.keys(SPECIALTIES);
+
+export interface TestAnswer {
+  text: string;
+  iconName: string;
+  nextQuestionId?: number;
+  resultCode?: string;
+}
+
+export interface TestQuestion {
+  id: number;
+  text: string;
+  answers: TestAnswer[];
+}
+
+export const TEST_QUESTIONS: TestQuestion[] = [
+  {
+    id: 1,
+    text: 'С чем бы ты хотел связать свою будущую профессию?',
+    answers: [
+      { text: 'IT, компьютеры и код', iconName: 'Code', nextQuestionId: 2 },
+      { text: 'Небо, самолеты и беспилотники', iconName: 'Plane', nextQuestionId: 3 },
+      { text: 'Микросхемы, провода и умные устройства', iconName: 'Cpu', nextQuestionId: 4 },
+      { text: 'Станки, 3D-печать и создание деталей', iconName: 'Settings', nextQuestionId: 5 },
+      { text: 'Линзы, лазеры и помощь зрению', iconName: 'Telescope', nextQuestionId: 6 },
+    ],
+  },
+  {
+    id: 2,
+    text: 'Что тебе ближе?',
+    answers: [
+      { text: 'Писать код, создавать программы и сайты', iconName: 'Code', resultCode: '09.02.11' },
+      { text: 'Собирать ПК, настраивать сети и серверное железо', iconName: 'Monitor', resultCode: '09.02.01' },
+    ],
+  },
+  {
+    id: 3,
+    text: 'Какая авиация тебя привлекает больше?',
+    answers: [
+      { text: 'Большие пассажирские и транспортные самолеты (сборка, ремонт)', iconName: 'Plane', resultCode: '25.02.06' },
+      { text: 'Квадрокоптеры и дроны (управление, конструирование)', iconName: 'Radio', resultCode: '25.02.08' },
+      { text: 'Навигация, радары и приборы внутри кабины пилота', iconName: 'Layout', resultCode: '25.02.03' },
+    ],
+  },
+  {
+    id: 4,
+    text: 'Как именно ты хочешь работать с электроникой?',
+    answers: [
+      { text: 'Придумывать и разрабатывать новые умные устройства с нуля', iconName: 'Zap', resultCode: '11.02.17' },
+      { text: 'Ремонтировать и обслуживать готовую сложную технику', iconName: 'Wrench', resultCode: '11.02.16' },
+      { text: 'Работать с системами связи и радарами на транспорте', iconName: 'Radio', resultCode: '11.02.06' },
+    ],
+  },
+  {
+    id: 5,
+    text: 'Как ты хочешь создавать детали?',
+    answers: [
+      { text: 'Вытачивать из металла на умных станках с ЧПУ', iconName: 'Hammer', resultCode: '15.02.16' },
+      { text: 'Печатать на 3D-принтерах (полимеры, реверс-инжиниринг)', iconName: 'Printer', resultCode: '15.02.09' },
+      { text: 'Монтировать и чинить огромные промышленные линии', iconName: 'Wrench', resultCode: '15.02.17' },
+    ],
+  },
+  {
+    id: 6,
+    text: 'Оптика бывает разной. Что выберешь?',
+    answers: [
+      { text: 'Помогать людям: делать очки, контактные линзы, работать с медициной', iconName: 'Stethoscope', resultCode: '31.02.04' },
+      { text: 'Собирать сложные приборы (лазеры, телескопы, тепловизоры)', iconName: 'Telescope', resultCode: '12.02.09' },
+    ],
+  },
+];
+
+export const DAYS_ORDER = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+
+export const API_CONFIG = {
+  DEFAULT_TIMEOUT: 10000,
+  DEFAULT_PORT: 3005,
+  REFRESH_INTERVALS: {
+    NEWS: 5 * 60 * 1000,
+    SCHEDULE: 60 * 60 * 1000,
+    STAFF: 24 * 60 * 60 * 1000,
+  },
+};
+
+export const UI_CONSTANTS = {
+  MAX_NEWS_TITLE_LENGTH: 120,
+  MAX_DOC_TITLE_LENGTH: 120,
+  DEBOUNCE_DELAY: 300,
+  ANIMATION_DURATION: 300,
+};
